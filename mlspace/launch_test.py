@@ -12,7 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mlspace.launch import launch
+import base64
+import json
+from pathlib import Path
+
+from mlspace.launch import Job, Spec, launch
+
+
+class TestSpec:
+
+    def test_from_job(self):
+        job = Job(executable=Path('/usr/bin/env'), args=['-i'],
+                  env={'VAR': 'VAL'})
+        spec = Spec.from_job(job)
+        assert spec.version == 0
+        assert len(spec.chunks) == 1
+
+        flags = spec.to_flags_dict()
+        assert flags != {}
+        assert flags['spec-version'] == b'0'
+        assert flags['spec-num-chunks'] == b'1'
+        assert flags['spec-chunk-0'] != b''
+
+        chunk = flags['spec-chunk-0']
+        payload = base64.b64decode(chunk)
+        obj = json.loads(payload)
+        assert isinstance(obj, dict)
+        assert obj['executable'] == job.executable
+        assert obj['args'] == job.args
+        assert obj['env'] == job.env
 
 
 def test_launch():
