@@ -1,0 +1,33 @@
+[project]
+name = "mlspace"
+version = "0.0.0"
+description = """\
+Alternative workload management in MLSpace at Cloud.RU (aka SberCloud)."""
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Daniel Betshatsky", email = "daniel.bershatsky@gmail.com" },
+]
+
+[project.urls]
+Homepage = "https://github.com/daskol/mlspace"
+
+[tool.pytest.ini_options]
+minversion = "8.2"
+addopts = "-ra -q -m 'not slow' --no-header"
+testpaths = ["."]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+python_files = ["*_test.py", "*_bench.py"]
+python_classes = ["Test*", "*Benchmark"]
+python_functions = ["test_*", "bench_*"]
+
+[tool.ruff]
+output-format = "concise"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "LOG", "PYI"]
+ignore = ["I001", "PYI021"]
+preview = true
