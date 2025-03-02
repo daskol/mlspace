@@ -11,3 +11,58 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from dataclasses import dataclass, field
+from os import environ, getenv
+from typing import Callable
+
+__all__ = ('PREFIX', 'config')
+
+PREFIX: str = 'MLSPACE_'
+
+
+def secret(name: str) -> str | None:
+    var = f'{PREFIX}{name}'
+    if (val := getenv(var)) is None:
+        return None
+    del environ[var]
+    return val
+
+
+def secret_fn(name: str) -> Callable[..., str | None]:
+    return lambda: secret(name)
+
+
+@dataclass(slots=True)
+class SecretConfig:
+
+    _access_token: str | None = field(default_factory=secret_fn('api_key'))
+
+    _api_key: str | None = field(default_factory=secret_fn('api_key'))
+
+    _workspace_id: str | None = field(default_factory=secret_fn('api_key'))
+
+    @property
+    def access_token(self) -> str:
+        return self._property_safe('access_token')
+
+    @property
+    def api_key(self) -> str:
+        return self._property_safe('api_key')
+
+    @property
+    def workspace_id(self) -> str:
+        return self._property_safe('workspace_id')
+
+    def _property_safe(self, var: str) -> str:
+        if (val := getattr(self, f'_{var}', None)) is None:
+            raise RuntimeError(f'Secret `{var}` is not specified.')
+        return val
+
+
+@dataclass(slots=True)
+class Config(SecretConfig):
+    pass
+
+
+config = Config()  # TODO(@daskol): Not thread-safe.

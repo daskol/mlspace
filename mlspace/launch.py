@@ -54,13 +54,13 @@ class LocalRunner(Runner):
     def launch(self, job: 'Job'):
         # Encode job spec as chunked base64-encoded JSON.
         flags = Spec.from_job(job).to_flags_dict()
-        command = [str(LAUNCH_BIN.absolute()).encode('utf-8')]
+        command = [str(LAUNCH_BIN.absolute())]
         for k, v in flags.items():
             if len(k) == 1:
                 flag = f'-{k}'
             else:
                 flag = f'--{k}'
-            command += [flag.encode('utf-8'), v]
+            command += [flag, v]
 
         # TODO(@daskol): Find proper way to detach child process.
         job_id = str(uuid4())
@@ -109,7 +109,7 @@ class MLSpaceRunner(Runner):
 class Spec:
     """Intermediate wire representation for a :class:`Job`."""
 
-    chunks: tuple[bytes, ...]
+    chunks: tuple[str, ...]
 
     version: int = 0
 
@@ -120,17 +120,17 @@ class Spec:
     @classmethod
     def from_job(cls, job: 'Job') -> Self:
         chunks = []
-        encoded_json = job.to_base64()
+        encoded_json = job.to_base64().decode('ascii')
         for i in range(len(encoded_json) // Spec.MAX_ARG_STRLEN + 1):
             begin = i * Spec.MAX_ARG_STRLEN
             end = begin + Spec.MAX_ARG_STRLEN
             chunks.append(encoded_json[begin:end])
         return cls(tuple(chunks))
 
-    def to_flags_dict(self) -> dict[str, bytes]:
+    def to_flags_dict(self) -> dict[str, str]:
         flags = {
-            'spec-version': f'{self.version}'.encode('utf-8'),
-            'spec-num-chunks': f'{len(self.chunks)}'.encode('utf-8'),
+            'spec-version': f'{self.version}',
+            'spec-num-chunks': f'{len(self.chunks)}',
         }
         for i, chunk in enumerate(self.chunks):
             flags[f'spec-chunk-{i}'] = chunk

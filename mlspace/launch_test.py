@@ -30,22 +30,20 @@ class TestSpec:
 
         flags = spec.to_flags_dict()
         assert flags != {}
-        assert flags['spec-version'] == b'0'
-        assert flags['spec-num-chunks'] == b'1'
-        assert flags['spec-chunk-0'] != b''
+        assert flags['spec-version'] == '0'
+        assert flags['spec-num-chunks'] == '1'
+        assert flags['spec-chunk-0'] != ''
 
         chunk = flags['spec-chunk-0']
         payload = base64.b64decode(chunk)
         obj = json.loads(payload)
         assert isinstance(obj, dict)
-        assert obj['executable'] == job.executable
+        assert obj['executable'] == str(job.executable)
         assert obj['args'] == job.args
         assert obj['env'] == job.env
 
 
 def test_launch():
-    command = [
-        'python', '-m', 'mylib', 'train', '--config', 'config/mlspace.toml'
-    ]
-    with launch(command) as job:
+    command = ['python', '-m', 'mylib', 'train', 'config/example.toml']
+    with launch(None, command) as job:
         assert job is not None  # Dummy assertion.

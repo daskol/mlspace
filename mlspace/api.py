@@ -19,6 +19,8 @@ from http.client import HTTPConnection
 from typing import Literal
 from urllib.parse import urlparse
 
+from mlspace import config
+
 __all__ = ('HealthParams', 'GatewayV2', 'PriorityClass')
 
 API_SPEC_URL = 'https://api.ai.cloud.ru/public/v2/redoc'
@@ -73,9 +75,9 @@ class GatewayV2:
                  workspace_id: str | None = None,
                  endpoint: str | None = None):
         # TODO(@daskol): Populate from module-level configuration object.
-        self.access_token = access_token
-        self.api_key = api_key
-        self.workspace_id = workspace_id
+        self.access_token = access_token or config.access_token
+        self.api_key = api_key or config.access_token
+        self.workspace_id = workspace_id or config.access_token
         self.endpoint: str = endpoint or GatewayV2.ENDPOINT
 
         self.url = urlparse(self.endpoint)
