@@ -32,15 +32,21 @@ add_library(mlspace STATIC)
 target_sources(mlspace
     PUBLIC
         base64.h
+        cli.h
+        job.h
     PRIVATE
         base64.cc
+        cli.cc
+        job.cc
 )
+
+target_link_libraries(mlspace PRIVATE nlohmann_json::nlohmann_json)
 
 add_executable(launch)
 
 target_sources(launch PRIVATE launch.cc)
 target_include_directories(launch PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(launch PRIVATE mlspace nlohmann_json::nlohmann_json)
+target_link_libraries(launch PRIVATE mlspace)
 
 if (ENABLE_TESTS)
     find_package(GTest REQUIRED)
