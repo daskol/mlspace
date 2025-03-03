@@ -17,6 +17,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_SCAN_FOR_MODULES FALSE)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+include(FetchContent)
+
+FetchContent_Declare(json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+    URL_HASH
+        SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+)
+
+FetchContent_MakeAvailable(json)
+
 add_library(mlspace STATIC)
 
 target_sources(mlspace
@@ -30,7 +40,7 @@ add_executable(launch)
 
 target_sources(launch PRIVATE launch.cc)
 target_include_directories(launch PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(launch mlspace)
+target_link_libraries(launch PRIVATE mlspace nlohmann_json::nlohmann_json)
 
 if (ENABLE_TESTS)
     find_package(GTest REQUIRED)

@@ -2,12 +2,18 @@
 #include <cassert>
 #include <charconv>
 #include <cstdio>
+#include <filesystem>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
 
+#include <unistd.h>
+
 #include "base64.h"
+
+#include <nlohmann/json.hpp>
 
 // TODO(@daskol): Signal traps: sigchild, sigkill, sig...
 
@@ -226,6 +232,158 @@ std::optional<Spec> Spec::FromArgs(std::vector<std::string_view> const &args) {
     return spec;
 }
 
+struct Job {
+    std::string executable;
+    std::vector<std::string> args;
+    std::unordered_map<std::string, std::string> env;
+    std::optional<std::filesystem::path> work_dir;
+
+    bool shell_use;
+    std::string shell;
+    std::string image;
+
+    static std::optional<Job> FromJSON(nlohmann::json const &json);
+};
+
+bool JsonPathInto(nlohmann::json const &json, std::string const &key,
+                  std::optional<std::filesystem::path> &path) {
+    if (!json.contains(key)) {
+        return false;
+    } else if (auto tmp = json.at(key); !tmp.is_string()) {
+        return true;
+    } else {
+        path = std::move(tmp.template get<std::string>());
+        return true;
+    }
+}
+
+bool JsonStringInto(nlohmann::json const &json, std::string const &key,
+                    std::string &val) {
+    if (!json.contains(key)) {
+        return false;
+    } else if (auto tmp = json.at(key); !tmp.is_string()) {
+        return false;
+    } else {
+        val = tmp.template get<std::string>();
+        return true;
+    }
+}
+
+bool JsonVectorInto(nlohmann::json const &json, std::string const &key,
+                    std::vector<std::string> &val) {
+    if (!json.contains(key)) {
+        return false;
+    } else if (auto tmp = json.at(key); !tmp.is_array()) {
+        return false;
+    } else {
+        val = tmp.template get<std::vector<std::string>>();
+        return true;
+    }
+}
+
+bool JsonDictInto(nlohmann::json const &json, std::string const &key,
+                  std::unordered_map<std::string, std::string> &val) {
+    using T = std::unordered_map<std::string, std::string>;
+    if (!json.contains(key)) {
+        return false;
+    } else if (auto tmp = json.at(key); !tmp.is_object()) {
+        return false;
+    } else {
+        val = tmp.template get<T>();
+        return true;
+    }
+}
+
+std::optional<Job> Job::FromJSON(nlohmann::json const &json) {
+    Job job;
+    if (!JsonStringInto(json, "executable", job.executable)) {
+        return std::nullopt;
+    }
+
+    if (!JsonVectorInto(json, "args", job.args)) {
+        return std::nullopt;
+    }
+
+    if (!JsonDictInto(json, "env", job.env)) {
+        return std::nullopt;
+    }
+
+    if (!JsonPathInto(json, "work_dir", job.work_dir)) {
+        return std::nullopt;
+    }
+
+    return job;
+}
+
+int Exec(std::string const &exe, std::vector<char *> const &args,
+         std::vector<char *> const &env) {
+    if (int ret = execvpe(exe.data(), args.data(), env.data())) {
+        printf("failed to launch: [%d] %s: %s\n", ret, strerrorname_np(errno),
+               strerrordesc_np(errno));
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int Spawn(Job job) {
+    // Prepare subprocess command line arguments.
+    std::vector<char *> args;
+    args.reserve(job.args.size() + 2);
+    args.push_back(job.executable.data());
+    for (auto &arg : job.args) {
+        args.push_back(arg.data());
+    }
+    args.push_back(nullptr);
+
+    // Prepare subprocess environment variables.
+    std::vector<std::string> env_owner;
+    std::vector<char *> env;
+    env_owner.reserve(job.env.size() + 1);
+    env.reserve(job.env.size() + 1);
+    for (auto &[k, v] : job.env) {
+        // TODO(@daskol): Is it nessesary to join with '='?
+        env_owner.push_back(k + '=' + v);
+        env.push_back(env_owner.back().data());
+    }
+
+    // Add environment variables of parent process.
+    for (auto ptr = environ; *ptr != nullptr; ++ptr) {
+        std::string_view str(*ptr), key = str;
+        auto offset = str.find_first_of('=');
+        if (offset != str.npos) {
+            key = str.substr(0, offset);
+        }
+        if (!job.env.contains(std::string{key})) {
+            env.push_back(*ptr);
+        }
+    }
+
+    // Array of environ veriables is NULL-terminated.
+    env.push_back(nullptr);
+
+    std::error_code ec;
+    std::filesystem::path curr_dir;
+    if (job.work_dir) {
+        curr_dir = std::filesystem::current_path();
+        std::filesystem::current_path(*job.work_dir, ec);
+        if (ec) {
+            printf("failed to change work dir: %s\n", ec.message().data());
+            return 1;
+        }
+    }
+
+    int ret = Exec(job.executable, args, env);
+
+    if (job.work_dir) {
+        std::filesystem::current_path(curr_dir, ec);
+        if (ec) {
+            printf("failed to restore work dir: %s\n", ec.message().data());
+        }
+    }
+    return ret;
+}
+
 int Run(std::vector<std::string_view> const &args) {
     Spec spec;
     if (auto res = Spec::FromArgs(args)) {
@@ -242,7 +400,35 @@ int Run(std::vector<std::string_view> const &args) {
         printf("--opt-chunk-%d=%s\n", ix, spec.chunks[ix].data());
     }
 
-    return 0;
+    mlspace::Base64 base64;
+    auto decoded_chunk = base64.Decode(std::string{spec.chunks[0]});
+    printf("decoded: %s\n", decoded_chunk->data());
+
+    auto json = nlohmann::json::parse(*decoded_chunk, nullptr, false);
+    if (json.is_discarded()) {
+        printf("failed to parse json\n");
+        return 1;
+    }
+
+    auto job = Job::FromJSON(json);
+    if (!job) {
+        printf("failed to parse json to job\n");
+        return 1;
+    }
+    printf("executable: %s\n", job->executable.data());
+    printf("args: [");
+    for (auto const &arg : job->args) {
+        printf(" %s", arg.data());
+    }
+    printf(" ]\n");
+
+    printf("env: [");
+    for (auto const &[k, v] : job->env) {
+        printf(" %s=%s", k.data(), v.data());
+    }
+    printf(" ]\n");
+
+    return Spawn(*job);
 }
 
 } // namespace
