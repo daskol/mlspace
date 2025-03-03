@@ -12,7 +12,7 @@ target_sources(mlspace
 )
 
 target_include_directories(mlspace PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(mlspace PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(mlspace PUBLIC nlohmann_json::nlohmann_json)
 
 if (ENABLE_TESTS)
     find_package(GTest REQUIRED)

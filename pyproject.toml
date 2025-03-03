@@ -15,7 +15,6 @@ authors = [
 maintainers = [
     { name = "Daniel Betshatsky", email = "daniel.bershatsky@gmail.com" },
 ]
-license = "Apache-2.0"
 license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -77,3 +76,9 @@ output-format = "concise"
 select = ["E", "F", "I", "LOG", "PYI"]
 ignore = ["I001", "PYI021"]
 preview = true
+
+[tool.cibuildwheel]
+build = "cp*-manylinux*"
+archs = ["x86_64"]
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64"
+build-verbosity = 3

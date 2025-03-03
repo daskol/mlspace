@@ -36,8 +36,7 @@ namespace {
 int Exec(std::string const &exe, std::vector<char *> const &args,
          std::vector<char *> const &env) {
     if (int ret = execvpe(exe.data(), args.data(), env.data())) {
-        printf("failed to launch: [%d] %s: %s\n", ret, strerrorname_np(errno),
-               strerrordesc_np(errno));
+        printf("failed to launch: [%d] %s\n", ret, strerror(errno));
         return 1;
     } else {
         return 0;
