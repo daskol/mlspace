@@ -1,3 +1,7 @@
+[build-system]
+requires = ["scikit-build-core==0.10.7"]
+build-backend = "scikit_build_core.build"
+
 [project]
 name = "mlspace"
 version = "0.0.0"
@@ -7,6 +11,32 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [
     { name = "Daniel Betshatsky", email = "daniel.bershatsky@gmail.com" },
+]
+maintainers = [
+    { name = "Daniel Betshatsky", email = "daniel.bershatsky@gmail.com" },
+]
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: System Administrators",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: POSIX",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: POSIX :: Other",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Utilities",
+  "Typing :: Typed",
 ]
 
 [project.urls]
@@ -23,6 +53,22 @@ filterwarnings = ["ignore::DeprecationWarning"]
 python_files = ["*_test.py", "*_bench.py"]
 python_classes = ["Test*", "*Benchmark"]
 python_functions = ["test_*", "bench_*"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+
+build-dir = "build/{wheel_tag}"
+build.targets = ["launch"]
+
+# We need some experimental features: installation into platform directories
+# (see "binary-distribution-format" and `SKBUILD_DATA_DIR` for details).
+#
+# https://packaging.python.org/en/latest/specifications/binary-distribution-format/
+experimental = true
+
+wheel.exclude = ["*_test.py", "*.cc", "*.h", "CMakeLists.txt"]
+wheel.packages = ["mlspace"]
+wheel.py-api = "cp312"  # Stable ABI for py3.12+.
 
 [tool.ruff]
 output-format = "concise"

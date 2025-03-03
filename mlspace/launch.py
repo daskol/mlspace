@@ -20,10 +20,10 @@ from dataclasses import asdict, dataclass, field
 from os import PathLike
 from pathlib import Path
 from subprocess import Popen
-from typing import Any, ClassVar, Iterator, Self
+from typing import Any, ClassVar, Iterator, Self, cast
 from uuid import uuid4
 
-LAUNCH_BIN = Path('launch')  # TODO(@daskol): Not configurable.
+from mlspace import config
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,10 @@ class Runner:
     def join(self, job: 'Job'):
         raise NotImplementedError
 
-    def launch(self, job: 'Job'):
+    def launch(self, job: 'Job', launch_bin: Path):
+        raise NotImplementedError
+
+    def detach(self, job: 'Job'):
         raise NotImplementedError
 
 
@@ -51,10 +54,10 @@ class LocalRunner(Runner):
         code = proc.wait()
         logger.info('locally spawned job finished: retcode=%d', code)
 
-    def launch(self, job: 'Job'):
+    def launch(self, job: 'Job', launch_bin: Path):
         # Encode job spec as chunked base64-encoded JSON.
         flags = Spec.from_job(job).to_flags_dict()
-        command = [str(LAUNCH_BIN.absolute())]
+        command = [str(launch_bin.resolve())]
         for k, v in flags.items():
             if len(k) == 1:
                 flag = f'-{k}'
@@ -88,7 +91,7 @@ class MLSpaceRunner(Runner):
             raise RuntimeError('Job has no assigned identifier.')
         raise NotImplementedError
 
-    def launch(self, job: 'Job'):
+    def launch(self, job: 'Job', launch_bin: Path):
         # TODO(@daskol): Find proper way to detach child process.
         if (base_image := job.image) is None:
             raise ValueError('Job image is not specified.')
@@ -183,9 +186,9 @@ class Job:
         raise NotImplementedError
 
     def launch(self, launch_bin: PathLike | None = None):
-        if launch_bin is None:
-            launch_bin = LAUNCH_BIN
-        self._runner.launch(self)
+        if (launch_bin := launch_bin or config.launch_bin) is None:
+            raise RuntimeError('No `launch_bin` found.')
+        self._runner.launch(self, cast(Path, launch_bin))  # Not None!
 
 
 @contextmanager

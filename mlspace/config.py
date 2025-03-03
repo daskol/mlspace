@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from dataclasses import dataclass, field
 from os import environ, getenv
+from pathlib import Path
 from typing import Callable
 
 __all__ = ('PREFIX', 'config')
@@ -22,7 +24,7 @@ PREFIX: str = 'MLSPACE_'
 
 
 def secret(name: str) -> str | None:
-    var = f'{PREFIX}{name}'
+    var = f'{PREFIX}{name.upper()}'
     if (val := getenv(var)) is None:
         return None
     del environ[var]
@@ -31,6 +33,21 @@ def secret(name: str) -> str | None:
 
 def secret_fn(name: str) -> Callable[..., str | None]:
     return lambda: secret(name)
+
+
+def path_fn(name: str) -> Callable[..., Path | None]:
+    def fn() -> Path | None:
+        for search_path in search_paths:
+            path = (root_dir / search_path).resolve()
+            if path.exists():
+                return path
+        warnings.warn(('Binary `launch` is not found at its expected location '
+                       f'at {path}.'), RuntimeWarning)
+        return None
+
+    search_paths = ('launch', '../../../bin/launch')
+    root_dir = Path(__file__).parent
+    return fn
 
 
 @dataclass(slots=True)
@@ -62,7 +79,8 @@ class SecretConfig:
 
 @dataclass(slots=True)
 class Config(SecretConfig):
-    pass
+
+    launch_bin: Path | None = field(default_factory=path_fn('launch_bin'))
 
 
 config = Config()  # TODO(@daskol): Not thread-safe.
