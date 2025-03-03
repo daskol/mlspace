@@ -22,9 +22,9 @@
 
 #include <unistd.h>
 
-#include "base64.h"
-#include "cli.h"
-#include "job.h"
+#include <mlspace/cc/base64.h>
+#include <mlspace/cc/cli.h>
+#include <mlspace/cc/job.h>
 
 // TODO(@daskol): Signal traps: sigchild, sigkill, sig...
 

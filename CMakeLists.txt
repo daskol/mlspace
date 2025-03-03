@@ -27,32 +27,4 @@ FetchContent_Declare(json
 
 FetchContent_MakeAvailable(json)
 
-add_library(mlspace STATIC)
-
-target_sources(mlspace
-    PUBLIC
-        base64.h
-        cli.h
-        job.h
-    PRIVATE
-        base64.cc
-        cli.cc
-        job.cc
-)
-
-target_link_libraries(mlspace PRIVATE nlohmann_json::nlohmann_json)
-
-add_executable(launch)
-
-target_sources(launch PRIVATE launch.cc)
-target_include_directories(launch PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(launch PRIVATE mlspace)
-
-if (ENABLE_TESTS)
-    find_package(GTest REQUIRED)
-
-    add_executable(mlspace_test base64_test.cc)
-
-    target_include_directories(mlspace_test PRIVATE ${PROJECT_SOURCE_DIR})
-    target_link_libraries(mlspace_test PRIVATE GTest::gtest_main mlspace)
-endif()
+add_subdirectory(mlspace)
