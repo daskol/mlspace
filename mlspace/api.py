@@ -15,7 +15,7 @@
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPSConnection
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -84,11 +84,16 @@ class GatewayV2:
         if self.url.hostname is None:
             raise ValueError(
                 f'Endpoint does not have hostname: {self.endpoint}.')
-        if self.url.port is None:
-            raise ValueError(f'Endpoint does not have port: {self.endpoint}.')
 
         # TODO(@daskol): No retries out of the box.
-        self.conn = HTTPConnection(self.url.hostname, self.url.port)
+        match self.url.scheme:
+            case 'http':
+                self.conn = HTTPConnection(self.url.hostname, self.url.port)
+            case 'https':
+                self.conn = HTTPSConnection(self.url.hostname, self.url.port)
+            case _:
+                raise ValueError(f'Unknown endpoint scheme: {self.endpoint}.')
+
         self.headers = {
             'authorization': f'Bearer {self.access_token}',
             'accept': 'application/json',
@@ -118,7 +123,7 @@ class GatewayV2:
         region: str | None = None,
         type_: str = 'binary',
         n_workers: int = 1,
-        process_per_worker: int | Literal['default'] = 'default',
+        process_per_worker: int | None = None,
         job_desc: str | None = None,
         internet: bool | None = None,
         max_retry: int | None = None,
@@ -130,6 +135,9 @@ class GatewayV2:
     ) -> str:
         """Run training jobs on various configurations of resources with useful
         options such as self-healing and monitoring.
+
+        NOTE API spec says that `process_per_worker` default value is `default`
+        but remote service responds with bad request (404).
         """
         params = {**locals()}
         params.pop('self')

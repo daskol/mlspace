@@ -89,7 +89,7 @@ def launch(ns: Namespace) -> int:
 
     # Import all related subpackages as late as possible for better UX.
     from mlspace.launch import launch
-    with launch(image, command, env) as job:
+    with launch(image, command, env, run_local=ns.local) as job:
         if ns.detach:
             job.detach
             return 0

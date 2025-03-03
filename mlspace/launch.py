@@ -16,7 +16,8 @@ import json
 import logging
 from base64 import b64encode
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field
+from copy import deepcopy
+from dataclasses import dataclass, field, fields
 from os import PathLike
 from pathlib import Path
 from subprocess import Popen
@@ -96,7 +97,7 @@ class MLSpaceRunner(Runner):
         if (base_image := job.image) is None:
             raise ValueError('Job image is not specified.')
         job._id = self.gwapi.job_run(
-            script=str(job.executable),
+            script=str(launch_bin),
             base_image=base_image,
             instance_type='v100.1gpu',  # TODO(@daskol): Hardcoded.
             flags=Spec.from_job(job).to_flags_dict(),
@@ -165,10 +166,13 @@ class Job:
         return b64encode(value)
 
     def to_dict(self) -> dict[str, Any]:
-        obj = asdict(self)
-        obj.pop('_runner')
-        obj.pop('_id')
-        obj['executable'] = str(self.executable)
+        obj: dict[str, Any] = {}
+        for field in fields(self):  # noqa: F402
+            if field.name.startswith('_'):
+                continue
+            obj[field.name] = getattr(self, field.name)
+        obj = deepcopy(obj)
+        obj['executable'] = str(self.executable)  # TODO(@daskol): Cast?
         return obj
 
     def to_json(self) -> str:
@@ -193,7 +197,8 @@ class Job:
 
 @contextmanager
 def launch(image: str | None, command: list[str], env: dict[str, str] = {},
-           launch_bin: PathLike | None = None, **kwargs) -> Iterator[Job]:
+           launch_bin: PathLike | None = None, run_local=False,
+           **kwargs) -> Iterator[Job]:
     """Conctext manager for lauching and waiting jobs.
 
     Args:
@@ -209,9 +214,10 @@ def launch(image: str | None, command: list[str], env: dict[str, str] = {},
     executable = Path(command[0])
     args_ = command[1:]
 
-    run_local = True
     if run_local:
         _runner = LocalRunner()
+    else:
+        _runner = MLSpaceRunner()
 
     job = Job(executable, args_, env, image=image, _runner=_runner, **kwargs)
     job.launch(launch_bin)

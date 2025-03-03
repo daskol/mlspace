@@ -45,7 +45,7 @@ def path_fn(name: str) -> Callable[..., Path | None]:
                        f'at {path}.'), RuntimeWarning)
         return None
 
-    search_paths = ('launch', '../../../bin/launch')
+    search_paths = ('launch', '../../../../bin/launch')
     root_dir = Path(__file__).parent
     return fn
 
@@ -53,11 +53,12 @@ def path_fn(name: str) -> Callable[..., Path | None]:
 @dataclass(slots=True)
 class SecretConfig:
 
-    _access_token: str | None = field(default_factory=secret_fn('api_key'))
+    _access_token: str | None = field(
+        default_factory=secret_fn('access_token'))
 
     _api_key: str | None = field(default_factory=secret_fn('api_key'))
 
-    _workspace_id: str | None = field(default_factory=secret_fn('api_key'))
+    _workspace_id: str | None = field(default_factory=secret_fn('workspace_id'))
 
     @property
     def access_token(self) -> str:
