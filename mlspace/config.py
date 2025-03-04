@@ -16,7 +16,7 @@ import warnings
 from dataclasses import dataclass, field
 from os import environ, getenv
 from pathlib import Path
-from typing import Callable
+from typing import Callable, cast
 
 __all__ = ('PREFIX', 'config')
 
@@ -50,6 +50,15 @@ def path_fn(name: str) -> Callable[..., Path | None]:
     return fn
 
 
+def string_env(name: str, prefix=True) -> str | None:
+    if prefix:
+        var = f'{PREFIX}{name.upper()}'
+    else:
+        var = name.upper()
+    member = field(default=getenv(var))
+    return cast(str, member)  # Actual type is Field[str].
+
+
 @dataclass(slots=True)
 class SecretConfig:
 
@@ -81,7 +90,23 @@ class SecretConfig:
 @dataclass(slots=True)
 class Config(SecretConfig):
 
+    gwapi_addr: str | None = string_env('GWAPI_ADDR', False)
+
+    gwapi_v2_url: str | None = string_env('GWAPI_V2_URL', False)
+
     launch_bin: Path | None = field(default_factory=path_fn('launch_bin'))
+
+    @property
+    def gateway_v1_endpoint(self) -> str | None:
+        if self.gwapi_addr:
+            return f'http://{self.gwapi_addr}'
+        return None
+
+    @property
+    def gateway_v2_endpoint(self) -> str | None:
+        if self.gwapi_addr:
+            return f'http://{self.gwapi_v2_url}'
+        return None
 
 
 config = Config()  # TODO(@daskol): Not thread-safe.

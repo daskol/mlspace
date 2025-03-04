@@ -84,8 +84,8 @@ class MLSpaceRunner(Runner):
         super().__init__()
 
         # Load all implementation lazily.
-        from mlspace.api import GatewayV2
-        self.gwapi = GatewayV2(**kwargs)
+        from mlspace.api import Gateway
+        self.gwapi = Gateway(**kwargs)
 
     def join(self, job: 'Job'):
         if (_job_id := job._id) is None:
@@ -214,6 +214,7 @@ def launch(image: str | None, command: list[str], env: dict[str, str] = {},
     executable = Path(command[0])
     args_ = command[1:]
 
+    _runner: Runner
     if run_local:
         _runner = LocalRunner()
     else:

@@ -77,5 +77,10 @@ cibuildwheel --only cp313-manylinux_x86_64
 
 ## References
 
-[1]: https://api.ai.cloud.ru/public/v2/redoc
-[2]: https://api.aicloud.sbercloud.ru/public/v2/openapi.json
++ [Gateway V1 public API: Specification.][1].
++ [Gateway V2 public API: Specification.][2].
++ [Gateway V2 public API: OpenAI Specification][3].
+
+[1]: https://api.ai.cloud.ru/public/v1/redoc
+[2]: https://api.ai.cloud.ru/public/v2/redoc
+[3]: https://api.aicloud.sbercloud.ru/public/v2/openapi.json

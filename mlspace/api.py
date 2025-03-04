@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from http.client import HTTPConnection, HTTPSConnection
@@ -29,6 +30,8 @@ PriorityClass = Literal['low', 'medium', 'high']
 
 JobType = Literal['binary', 'horovod', 'pytorch', 'pytorch2',
                   'pytorch_elastic', 'spark', 'nogpu', 'binary_exp']
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -76,8 +79,8 @@ class GatewayV2:
                  endpoint: str | None = None):
         # TODO(@daskol): Populate from module-level configuration object.
         self.access_token = access_token or config.access_token
-        self.api_key = api_key or config.access_token
-        self.workspace_id = workspace_id or config.access_token
+        self.api_key = api_key or config.api_key
+        self.workspace_id = workspace_id or config.workspace_id
         self.endpoint: str = endpoint or GatewayV2.ENDPOINT
 
         self.url = urlparse(self.endpoint)
@@ -97,6 +100,7 @@ class GatewayV2:
         self.headers = {
             'authorization': f'Bearer {self.access_token}',
             'accept': 'application/json',
+            'content-type': 'application/json',
             'x-api-key': self.api_key,
             'x-workspace-id': self.workspace_id,
         }
@@ -163,8 +167,72 @@ class GatewayV2:
                 f'Request failed with status {res.status} ({res.reason}): '
                 f'[{code}] {desc}.')
 
-        payload = json.load(res)
+        payload = json.loads(payload)
         return payload['job_name']
 
     def job_status(self):
         pass
+
+
+class Gateway(GatewayV2):
+    """Bindings to Gateway v1 public API (or internal?)."""
+
+    ENDPOINT = 'https://api.ai.cloud.ru/public/v1/'
+
+    def __init__(self, api_key: str | None = None,
+                 access_token: str | None = None,
+                 workspace_id: str | None = None,
+                 endpoint: str | None = None):
+        endpoint = endpoint or config.gateway_v1_endpoint or Gateway.ENDPOINT
+        super().__init__(api_key, access_token, workspace_id, endpoint)
+
+    def job_run(
+        self,
+        script: str,
+        base_image: str,
+        instance_type: str,
+        region: str | None = None,
+        type_: str = 'binary',
+        n_workers: int = 1,
+        process_per_worker: int | None = None,
+        job_desc: str | None = None,
+        internet: bool | None = None,
+        max_retry: int | None = None,
+        priority_class: PriorityClass | None = None,
+        health_params: HealthParams | None = None,
+        flags: dict[str, str] = {},
+        env_variables: dict[str, str] = {},
+        **kwargs,
+    ) -> str:
+        params = {**locals()}
+        params.pop('self')
+        params.pop('kwargs')
+        params['type'] = params.pop('type_')
+        params.update(kwargs)
+        filtered_params = {}
+        for k, v in params.items():
+            if v is None:
+                continue
+            if isinstance(v, dict | list | tuple) and len(v) == 0:
+                continue
+            filtered_params[k] = v
+        body = json.dumps(filtered_params, ensure_ascii=False)
+
+        self.conn.request('POST', '/run_job', body, self.headers)
+        res = self.conn.getresponse()
+        if res.status != 200:
+            content = res.read()
+            try:
+                payload = json.loads(content)
+            except json.JSONDecodeError:
+                logger.error('failed to decode JSON response: %s', content)
+                raise RuntimeError(
+                    f'Request failed with status {res.status} ({res.reason}).')
+            reason = payload.get('reason', 'no reason')
+            status = payload.get('status', 'no status')
+            raise RuntimeError(
+                f'Request failed with status {res.status} ({res.reason}): '
+                f'[{status}] {reason}.')
+
+        payload = json.loads(payload)
+        return payload['job_name']
