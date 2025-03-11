@@ -89,7 +89,8 @@ def launch(ns: Namespace) -> int:
 
     # Import all related subpackages as late as possible for better UX.
     from mlspace.launch import launch
-    with launch(image, command, env, run_local=ns.local) as job:
+    with launch(image, command, env, region=ns.region,
+                run_local=ns.local) as job:
         if ns.detach:
             job.detach
             return 0
@@ -144,6 +145,8 @@ g_job.add_argument(
     help='environment variable in form of `VAR[=VAL]`')
 g_job.add_argument(
     '-i', '--image', default=None, help='container image where to spawn job')
+g_job.add_argument(
+    '-r', '--region', default=None, help='region where to spawn a job')
 g_job.add_argument(
     '-s', '--shell', default=False, nargs='?',
     help='spawn a job with a shell and what shell')

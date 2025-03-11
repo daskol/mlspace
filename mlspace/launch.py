@@ -80,8 +80,10 @@ class LocalRunner(Runner):
 class MLSpaceRunner(Runner):
     """Job runner based on top of MLSpace Gateway v2 public API."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, region: str, **kwargs) -> None:
         super().__init__()
+
+        self.region = region
 
         # Load all implementation lazily.
         from mlspace.api import Gateway
@@ -100,6 +102,7 @@ class MLSpaceRunner(Runner):
             script=str(launch_bin),
             base_image=base_image,
             instance_type='v100.1gpu',  # TODO(@daskol): Hardcoded.
+            region=self.region,
             flags=Spec.from_job(job).to_flags_dict(),
         )
 
@@ -197,8 +200,8 @@ class Job:
 
 @contextmanager
 def launch(image: str | None, command: list[str], env: dict[str, str] = {},
-           launch_bin: PathLike | None = None, run_local=False,
-           **kwargs) -> Iterator[Job]:
+           region: str | None = None, launch_bin: PathLike | None = None,
+           run_local=False, **kwargs) -> Iterator[Job]:
     """Conctext manager for lauching and waiting jobs.
 
     Args:
@@ -207,6 +210,7 @@ def launch(image: str | None, command: list[str], env: dict[str, str] = {},
       command: Command to execute with its all arguments.
       env: Environment variables to add to job context before launching (see
       `man 3 execvpe` for details).
+      region: Cluster where to spawn job.
     """
     if len(command) == 0:
         raise RuntimeError(f'No command to run; command is empty: {command}.')
@@ -218,7 +222,10 @@ def launch(image: str | None, command: list[str], env: dict[str, str] = {},
     if run_local:
         _runner = LocalRunner()
     else:
-        _runner = MLSpaceRunner()
+        if region is None:
+            raise RuntimeError(
+                'Region must be non-empty for non-local executor.')
+        _runner = MLSpaceRunner(region)
 
     job = Job(executable, args_, env, image=image, _runner=_runner, **kwargs)
     job.launch(launch_bin)
