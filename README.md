@@ -1,3 +1,7 @@
+![Linting and testing][on-push]
+
+[on-push]: https://github.com/daskol/mlspace/actions/workflows/on-push.yml/badge.svg
+
 # MLSpace
 
 *Alternative workload management in MLSpace at Cloud.RU (aka SberCloud).*

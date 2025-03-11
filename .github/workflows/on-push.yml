@@ -1,0 +1,93 @@
+name: Linting and testing
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Linting with Python 3.12 (default)
+    runs-on: 'ubuntu-24.04'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Pull all PR commits
+        if: github.event.pull_request
+        run: |
+          # Un-shallow refs.
+          git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+          # Deepen topic branch; checkout topic branch.
+          git fetch origin ${{ github.ref }}:${{ github.head_ref }} \
+            --depth=$(( ${{ github.event.pull_request.commits }} + 1 ))
+          git checkout ${{ github.event.pull_request.head.ref }}
+          # Fetch main for common origin.
+          git fetch origin main:main --depth=100
+
+      - name: Set up Python 3.12 (default)
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          cache: 'pip'
+          python-version: 3.12
+
+      - name: Run pre-commit on pull request
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  # v3.0.1
+        if: github.event.pull_request
+        with:
+          extra_args: >
+            --from-ref "$(git merge-base main HEAD)"
+            --to-ref "${{ github.head_ref }}"
+
+      - name: Run pre-commit on merge
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  # v3.0.1
+        if: '!github.event.pull_request'
+
+  test:
+    name: Run tests with Python ${{ matrix.python-version }}
+    runs-on: 'ubuntu-24.04'
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          cache: 'pip'
+          python-version: ${{ matrix.python-version }}
+
+      # TODO(@daskol): Clean up and prepare `pyproject.toml` for packaging and
+      # proper dependency resolution. We must reuse dependency list from
+      # `pyproject.toml`.
+      - name: Install Python dependencies
+        run: |
+          # Testing dependencies.
+          python -m pip install mypy 'pytest>=8.2' pytest-cov
+      - name: Run all tests with PyTest
+        run: |
+          export PYTHON_TAG=$(
+            python -c 'import sys; print(sys.implementation.cache_tag)')
+          export PYTHONPATH=$PWD:$PYTHONPATH
+          pytest -vv \
+            --cov=mlspace \
+            --cov-report=html:coverage/html/${PYTHON_TAG} \
+            --cov-report=xml:coverage/xml/report.${PYTHON_TAG}.xml \
+            --junitxml=pytest/report.${PYTHON_TAG}.xml
+
+      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08  # v4.6.0
+        with:
+          name: pytest-report-${{ matrix.python-version }}
+          path: |
+            coverage
+            pytest
+
+      # This step never fails but it is useful to monitor status of type
+      # corectness.
+      - name: Check typing
+        run: mypy mlspace
