@@ -67,6 +67,7 @@ jobs:
       # `pyproject.toml`.
       - name: Install Python dependencies
         run: |
+          python -m pip install 'typing_extensions>=4.0.0'
           # Testing dependencies.
           python -m pip install mypy 'pytest>=8.2' pytest-cov
       - name: Run all tests with PyTest

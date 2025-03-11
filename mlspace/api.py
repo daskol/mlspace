@@ -167,7 +167,7 @@ class GatewayV2:
                 f'Request failed with status {res.status} ({res.reason}): '
                 f'[{code}] {desc}.')
 
-        payload = json.loads(payload)
+        payload = json.load(res)
         return payload['job_name']
 
     def job_status(self):

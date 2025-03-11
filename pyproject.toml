@@ -37,6 +37,9 @@ classifiers = [
   "Topic :: Utilities",
   "Typing :: Typed",
 ]
+dependencies = [
+    "typing_extensions>=4.0.0; python_version<'3.11'",
+]
 
 [project.urls]
 Homepage = "https://github.com/daskol/mlspace"
