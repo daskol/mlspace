@@ -10,18 +10,35 @@
 
 ## Rationale
 
+Default `client_lib` is awfully bad for workload management for multiple reason
+enumerated below.
+
 - Only `flags` (i.e. short `-o` or long `--option` with `-`).
 - Overcomplicated API (wtf is `pytorch` and `pytorch2`?).
 - Significant difference with `mpirun` and/or `slurm` but semantics the same.
 - Unclear "launch protocol" (i.e. `sshd` in userspace, directory layout, etc).
 - Option `-R` in `ssh` does not work. Consequently, `rsync` does not work too!
 - Nothing has been changing in three years.
+- Too many external Python dependencies.
 
 ## Usage
 
+A real world usage example follows. This command spawns a job in region `SR006`
+in container based on `$image` image. Job command is `env`, i.e. simply to
+print on stdout environment variables.
+
 ```bash
-python -m mlspace -e VAR=VAL -- env
+python -m mlspace -i "$image" -r SR006 -- env
 ```
+
+Specify inject environment variable `VAR=VAL` to job's environment and run
+command locally (useful for testing).
+
+```bash
+python -m mlspace -e VAR=VAL -l -- env
+```
+
+Run Gateway API service for testing.
 
 ```bash
 python -m mlspace.testing -H localhost -p 8080
@@ -61,7 +78,7 @@ cibuildwheel --only cp313-manylinux_x86_64
     1. Process command line arguments and restore original base64-encoded JSON.
     2. Decode JSON to job spec.
     3. Validate job spec.
-    4. Run target binary with `execvpe`.
+    4. Run target binary in common`fork`/`execvpe`/`wait` way.
         1. Change working directory.
         2. Update environment.
 
