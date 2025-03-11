@@ -14,6 +14,7 @@
 
 import json
 import logging
+import sys
 from base64 import b64encode
 from contextlib import contextmanager
 from copy import deepcopy
@@ -21,8 +22,13 @@ from dataclasses import dataclass, field, fields
 from os import PathLike
 from pathlib import Path
 from subprocess import Popen
-from typing import Any, ClassVar, Iterator, Self, cast
+from typing import Any, ClassVar, Iterator, cast
 from uuid import uuid4
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from mlspace import config
 

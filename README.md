@@ -1,3 +1,9 @@
+![Linting and testing][on-push]
+![Build wheels][wheels]
+
+[on-push]: https://github.com/daskol/mlspace/actions/workflows/on-push.yml/badge.svg
+[wheels]: https://github.com/daskol/mlspace/actions/workflows/build-wheels.yml/badge.svg
+
 # MLSpace
 
 *Alternative workload management in MLSpace at Cloud.RU (aka SberCloud).*
