@@ -20,6 +20,7 @@
 #include <string_view>
 #include <vector>
 
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <mlspace/cc/base64.h>
@@ -35,14 +36,30 @@ namespace {
 
 int Exec(std::string const &exe, std::vector<char *> const &args,
          std::vector<char *> const &env) {
-    if (int ret = execvpe(exe.data(), args.data(), env.data())) {
-        printf("failed to launch: [%d] %s\n", ret, strerror(errno));
+    if (pid_t pid = fork(); pid == 0) {
+        if (int ret = execvpe(exe.data(), args.data(), env.data())) {
+            printf("failed to launch: [%d] %s\n", ret, strerror(errno));
+            return 1;
+        } else {
+            return 0;
+        }
+    } else if (pid == -1) {
+        printf("failed to fork: %s\n", strerror(errno));
         return 1;
     } else {
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            printf("failed to wait job command: %s\n", strerror(errno));
+            return 1;
+        }
+
+        printf("job command completed with exit code %d\n",
+               WEXITSTATUS(status));
         return 0;
     }
 }
 
+// Spawn spawns a new process and executes in user-specified command.
 int Spawn(Job job) {
     // Prepare subprocess command line arguments.
     std::vector<char *> args;
